@@ -223,7 +223,7 @@ Generate the Manim script for topic: {topic} with approximate length target {tar
                 audio_path = vpath.parent / f"{vpath.stem}_narration.mp3"
                 out_path = vpath.parent / f"{vpath.stem}_with_audio.mp4"
                 t_ok, tts_engine, vtt_path = await synthesize_speech_to_file(narration_text, language, audio_path)
-                if t_ok and mux_video_audio(vpath, audio_path, out_path):
+                if t_ok and mux_video_audio(vpath, audio_path, out_path, vtt_path):
                     has_audio = True
                     try:
                         if vpath.is_file():
@@ -350,12 +350,29 @@ Generate the Manim script for topic: {topic} with approximate length target {tar
             script = script.replace("(,", "(")
             
             # Automatically fix `.normalize()` on objects that might be numpy arrays
-            # Covers variable.normalize()
             script = re.sub(r'([a-zA-Z0-9_]+)\.normalize\(\)', r'(\1 / np.linalg.norm(\1))', script)
-            # Covers (expression).normalize()
-            script = re.sub(r'(\([^)]+\))\.normalize\(\)', r'(\1 / np.linalg.norm(\1))', script)
-            # Covers variable.get_vector().normalize() or similar method chaining
-            script = re.sub(r'([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+\([^)]*\))\.normalize\(\)', r'(\1 / np.linalg.norm(\1))', script)
+            script = re.sub(r'(\([^,)]+\))\.normalize\(\)', r'(\1 / np.linalg.norm(\1))', script)
+            script = re.sub(r'([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+\([^,)]*\))\.normalize\(\)', r'(\1 / np.linalg.norm(\1))', script)
+
+            # Automatically fix `.rotate()` on objects that might be numpy arrays
+            # manim.utils.space_ops.rotate_vector is usually available as rotate_vector with 'from manim import *'
+            # We ONLY apply this to parenthesized expressions (likely vector math) 
+            # because .rotate() IS a valid method for Mobjects.
+            script = re.sub(r'(\([^,)]+[\+\-\*\/][^,)]+\))\.(rotate)\(([^)]*(?:\([^)]*\)[^)]*)*)\)', r'rotate_vector(\1, \3)', script)
+
+            # Automatically fix `.scale()` on objects that might be numpy arrays
+            # We ONLY apply this to parenthesized expressions (likely vector math)
+            # because .scale() IS a valid method for Mobjects.
+            script = re.sub(r'(\([^,)]+[\+\-\*\/][^,)]+\))\.(scale)\(([^)]*(?:\([^)]*\)[^)]*)*)\)', r'(\1 * \3)', script)
+
+            # Automatically fix `.cross()` on objects that might be numpy arrays
+            # numpy.cross(a, b) is the standard way
+            script = re.sub(r'([a-zA-Z0-9_]+)\.cross\(([^)]+)\)', r'np.cross(\1, \2)', script)
+            script = re.sub(r'(\([^,)]+\))\.(cross)\(([^)]+)\)', r'np.cross(\1, \3)', script)
+
+            # Final check for numpy if we injected it
+            if "np." in script and "import numpy" not in script:
+                script = "import numpy as np\n" + script
                 
             return script
             

@@ -240,6 +240,7 @@ def mux_video_audio(
     video_mp4: Path,
     audio_mp3: Path,
     out_mp4: Path,
+    vtt_path: Optional[Path] = None,
 ) -> bool:
     if not video_mp4.is_file() or not audio_mp3.is_file():
         return False
@@ -247,7 +248,16 @@ def mux_video_audio(
         logger.error("ffmpeg not on PATH; cannot mux audio")
         return False
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
-    # Re-encode audio to AAC; copy video stream for speed; shortest stream sets duration
+    # Re-encode audio to AAC; burn subtitles if present
+    # We must re-encode video (libx264) to burn subtitles
+    if vtt_path and vtt_path.is_file():
+        # Escape path for ffmpeg filter
+        escaped_vtt = str(vtt_path).replace("\\", "/").replace(":", "\\:")
+        video_filter = f"subtitles='{escaped_vtt}'"
+        v_codec = ["-c:v", "libx264", "-vf", video_filter, "-preset", "veryfast"]
+    else:
+        v_codec = ["-c:v", "copy"]
+
     cmd = [
         "ffmpeg",
         "-y",
@@ -255,8 +265,7 @@ def mux_video_audio(
         str(video_mp4),
         "-i",
         str(audio_mp3),
-        "-c:v",
-        "copy",
+        *v_codec,
         "-c:a",
         "aac",
         "-b:a",
@@ -265,6 +274,7 @@ def mux_video_audio(
         "0:v:0",
         "-map",
         "1:a:0",
+        "-shortest",
         str(out_mp4),
     ]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)

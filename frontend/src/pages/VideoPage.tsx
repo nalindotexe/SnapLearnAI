@@ -224,15 +224,6 @@ const VideoPage: React.FC<VideoPageProps> = ({
               crossOrigin="anonymous"
             >
               <source src={apiClient.getVideoUrl(generatedVideo.video_url)} type="video/mp4" />
-              {generatedVideo.vtt_url && (
-                <track
-                  src={apiClient.getVideoUrl(generatedVideo.vtt_url)}
-                  kind="subtitles"
-                  srcLang="en"
-                  label="English"
-                  default
-                />
-              )}
               Your browser does not support the video tag.
             </video>
           </div>

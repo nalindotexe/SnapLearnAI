@@ -649,22 +649,14 @@ const EnhancedVideoPage: React.FC<EnhancedVideoPageProps> = ({
                     <div className="relative bg-black rounded-lg overflow-hidden">
                       <video
                         ref={videoRef}
-                        src={currentVideo.video_url}
+                        src={apiClient.getVideoUrl(currentVideo.video_url)}
                         className="w-full h-64 object-cover"
                         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
                         onEnded={handleVideoEnded}
                         crossOrigin="anonymous"
                         controls
                       >
-                        {currentVideo.vtt_url && (
-                          <track
-                            src={currentVideo.vtt_url}
-                            kind="subtitles"
-                            srcLang="en"
-                            label="English"
-                            default
-                          />
-                        )}
+                        <source src={apiClient.getVideoUrl(currentVideo.video_url)} type="video/mp4" />
                       </video>
                     </div>
 
